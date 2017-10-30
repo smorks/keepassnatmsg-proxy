@@ -13,7 +13,7 @@ namespace KeePassHttpProxy
         }
 
         private const string PipeName = "KeePassHttp";
-        private const int BufferSize = 1024*1024;
+        private const int ConnectTimeout = 5000;
         private NamedPipeClientStream _client;
         private Thread _clientThread;
         private bool _active;
@@ -31,7 +31,7 @@ namespace KeePassHttpProxy
             try
             {
                 _client = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-                _client.Connect(5000);
+                _client.Connect(ConnectTimeout);
             }
             catch (Exception)
             {
@@ -49,6 +49,8 @@ namespace KeePassHttpProxy
                 var data = ConsoleRead();
                 if (data != null)
                 {
+                    var hdr = BitConverter.GetBytes(data.Length);
+                    _client.Write(hdr, 0, hdr.Length);
                     _client.Write(data, 0, data.Length);
                 }
                 else
@@ -65,23 +67,17 @@ namespace KeePassHttpProxy
         {
             while (_active)
             {
-                var data = new byte[BufferSize];
-                var ar = _client.BeginRead(data, 0, data.Length, ClientRead, data);
-                ar.AsyncWaitHandle.WaitOne();
-            }
-        }
-
-        private void ClientRead(IAsyncResult result)
-        {
-            if (_active)
-            {
-                var bytes = _client.EndRead(result);
-                if (bytes > 0)
+                var hdr = new byte[4];
+                var bytes = _client.Read(hdr, 0, hdr.Length);
+                if (bytes == hdr.Length)
                 {
-                    var buffer = (byte[]) result.AsyncState;
-                    var data = new byte[bytes];
-                    Array.Copy(buffer, data, bytes);
-                    ConsoleWrite(data);
+                    var dataLen = BitConverter.ToInt32(hdr, 0);
+                    var data = new byte[dataLen];
+                    bytes = _client.Read(data, 0, data.Length);
+                    if (bytes == dataLen)
+                    {
+                        ConsoleWrite(data);
+                    }
                 }
             }
         }
