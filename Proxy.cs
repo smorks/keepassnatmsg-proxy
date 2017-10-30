@@ -49,23 +49,31 @@ namespace KeePassHttpProxy
                 var data = ConsoleRead();
                 if (data != null)
                 {
-                    var hdr = BitConverter.GetBytes(data.Length);
-                    _client.Write(hdr, 0, hdr.Length);
-                    _client.Write(data, 0, data.Length);
+                    ClientWrite(data);
                 }
                 else
                 {
                     _active = false;
                 }
-            } while (_active);
+            } while (_active && _client.IsConnected);
 
             _client.Close();
             _clientThread.Join();
         }
 
+        private void ClientWrite(byte[] data)
+        {
+            if (_active && _client.IsConnected)
+            {
+                var hdr = BitConverter.GetBytes(data.Length);
+                _client.Write(hdr, 0, hdr.Length);
+                _client.Write(data, 0, data.Length);
+            }
+        }
+
         private void ClientReadThread()
         {
-            while (_active)
+            while (_active && _client.IsConnected)
             {
                 var hdr = new byte[4];
                 var bytes = _client.Read(hdr, 0, hdr.Length);
