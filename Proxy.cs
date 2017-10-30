@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Net;
-using System.Net.Sockets;
+using System.IO.Pipes;
+using System.Threading;
 
 namespace KeePassHttpProxy
 {
@@ -12,73 +12,89 @@ namespace KeePassHttpProxy
             proxy.Run();
         }
 
-        private const int DefaultPort = 19700;
-        private System.Text.UTF8Encoding _utf8;
-        private UdpClient _udp;
-        private System.IO.StreamWriter _log;
+        private const string PipeName = "KeePassHttp";
+        private const int BufferSize = 1024*1024;
+        private NamedPipeClientStream _client;
+        private Thread _clientThread;
+        private bool _active;
+        private readonly object _writeLock;
 
         private Proxy()
         {
-            _utf8 = new System.Text.UTF8Encoding(false);
+            _writeLock = new object();
         }
 
         private void Run()
         {
-            _log = new System.IO.StreamWriter(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(GetType().Assembly.Location), "proxy.log"), true)
+            _active = true;
+
+            try
             {
-                AutoFlush = true
+                _client = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+                _client.Connect(5000);
+            }
+            catch (Exception)
+            {
+                return;
+            }
+
+            _clientThread = new Thread(ClientReadThread)
+            {
+                Name = "ClientReadThread"
             };
-            var lep = new IPEndPoint(IPAddress.Loopback, 0);
-            _udp = new UdpClient(lep);
-            _udp.Client.ReceiveTimeout = 5000;
-            _udp.Client.SendTimeout = 5000;
-
-            var ep = new IPEndPoint(IPAddress.Loopback, DefaultPort);
-            _udp.Connect(ep);
-
-            bool done = false;
+            _clientThread.Start();
 
             do
             {
-                try
+                var data = ConsoleRead();
+                if (data != null)
                 {
-                    var data = Read();
-                    if (data != null)
-                    {
-                        var msgIn = _utf8.GetString(data);
-                        _log.WriteLine("Got Message:");
-                        _log.WriteLine(msgIn);
-                        _udp.Send(data, data.Length);
-                        var rep = new IPEndPoint(IPAddress.Any, 0);
-                        var rdata = _udp.Receive(ref rep);
-                        var msgOut = _utf8.GetString(rdata);
-                        _log.WriteLine("Got Response:");
-                        _log.WriteLine(msgOut);
-                        Write(rdata);
-                    }
-                    else
-                    {
-                        done = true;
-                    }
+                    _client.Write(data, 0, data.Length);
                 }
-                catch (Exception ex)
+                else
                 {
-                    _log.WriteLine(ex.ToString());
+                    _active = false;
                 }
-            } while (!done);
-            _udp.Close();
-            _log.WriteLine("All done!");
-            _log.Close();
+            } while (_active);
+
+            _client.Close();
+            _clientThread.Join();
         }
 
-        private byte[] Read()
+        private void ClientReadThread()
+        {
+            while (_active)
+            {
+                var data = new byte[BufferSize];
+                var ar = _client.BeginRead(data, 0, data.Length, ClientRead, data);
+                ar.AsyncWaitHandle.WaitOne();
+            }
+        }
+
+        private void ClientRead(IAsyncResult result)
+        {
+            if (_active)
+            {
+                var bytes = _client.EndRead(result);
+                if (bytes > 0)
+                {
+                    var buffer = (byte[]) result.AsyncState;
+                    var data = new byte[bytes];
+                    Array.Copy(buffer, data, bytes);
+                    ConsoleWrite(data);
+                }
+            }
+        }
+
+        private byte[] ConsoleRead()
         {
             var stdin = Console.OpenStandardInput();
             var readBytes = new byte[4];
-            stdin.Read(readBytes, 0, readBytes.Length);
+            var read = stdin.Read(readBytes, 0, readBytes.Length);
+            if (read < readBytes.Length) return null;
             var length = BitConverter.ToInt32(readBytes, 0);
             var data = new byte[length];
-            var read = stdin.Read(data, 0, data.Length);
+            read = stdin.Read(data, 0, data.Length);
             if (read > 0)
             {
                 if (read < data.Length)
@@ -92,13 +108,16 @@ namespace KeePassHttpProxy
             return null;
         }
 
-        private void Write(byte[] data)
+        private void ConsoleWrite(byte[] data)
         {
-            var stdout = Console.OpenStandardOutput();
-            var bytes = BitConverter.GetBytes(data.Length);
-            stdout.Write(bytes, 0, bytes.Length);
-            stdout.Write(data, 0, data.Length);
-            stdout.Flush();
+            lock (_writeLock)
+            {
+                var stdout = Console.OpenStandardOutput();
+                var bytes = BitConverter.GetBytes(data.Length);
+                stdout.Write(bytes, 0, bytes.Length);
+                stdout.Write(data, 0, data.Length);
+                stdout.Flush();
+            }
         }
     }
 }
