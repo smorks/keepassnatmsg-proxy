@@ -12,6 +12,7 @@ namespace KeePassHttpProxy
             proxy.Run();
         }
 
+        private const int BufferSize = 1024*1024;
         private const string PipeName = "KeePassHttp";
         private const int ConnectTimeout = 5000;
         private NamedPipeClientStream _client;
@@ -65,9 +66,8 @@ namespace KeePassHttpProxy
         {
             if (_active && _client.IsConnected)
             {
-                var hdr = BitConverter.GetBytes(data.Length);
-                _client.Write(hdr, 0, hdr.Length);
                 _client.Write(data, 0, data.Length);
+                _client.Flush();
             }
         }
 
@@ -75,17 +75,13 @@ namespace KeePassHttpProxy
         {
             while (_active && _client.IsConnected)
             {
-                var hdr = new byte[4];
-                var bytes = _client.Read(hdr, 0, hdr.Length);
-                if (bytes == hdr.Length)
+                var buffer = new byte[BufferSize];
+                var bytes = _client.Read(buffer, 0, buffer.Length);
+                if (bytes > 0)
                 {
-                    var dataLen = BitConverter.ToInt32(hdr, 0);
-                    var data = new byte[dataLen];
-                    bytes = _client.Read(data, 0, data.Length);
-                    if (bytes == dataLen)
-                    {
-                        ConsoleWrite(data);
-                    }
+                    var data = new byte[bytes];
+                    Array.Copy(buffer, data, bytes);
+                    ConsoleWrite(data);
                 }
             }
         }
