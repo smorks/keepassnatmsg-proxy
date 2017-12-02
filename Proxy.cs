@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.IO.Pipes;
 using System.Threading;
 
@@ -13,7 +14,7 @@ namespace KeePassHttpProxy
         }
 
         private const int BufferSize = 1024*1024;
-        private const string PipeName = "KeePassHttp";
+        private const string PipeName = "kpxc_server";
         private const int ConnectTimeout = 5000;
         private NamedPipeClientStream _client;
         private Thread _clientThread;
@@ -31,7 +32,7 @@ namespace KeePassHttpProxy
 
             try
             {
-                _client = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+                _client = new NamedPipeClientStream(".", Path.Combine(Path.GetTempPath(), PipeName), PipeDirection.InOut, PipeOptions.Asynchronous);
                 _client.Connect(ConnectTimeout);
             }
             catch (Exception)
