@@ -32,7 +32,7 @@ namespace KeePassHttpProxy
 
             try
             {
-                _client = new NamedPipeClientStream(".", Path.Combine(Path.GetTempPath(), PipeName), PipeDirection.InOut, PipeOptions.Asynchronous);
+                _client = new NamedPipeClientStream(".", $"keepassxc\\{Environment.UserName}\\{PipeName}", PipeDirection.InOut, PipeOptions.Asynchronous);
                 _client.Connect(ConnectTimeout);
             }
             catch (Exception)
