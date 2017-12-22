@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace KeePassHttpProxy
+namespace KeePassNatMsgProxy
 {
     class Proxy
     {

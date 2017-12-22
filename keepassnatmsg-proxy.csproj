@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{102C623F-CE9A-4620-9095-923572B5167A}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>KeePassHttpProxy</RootNamespace>
-    <AssemblyName>keepasshttp-proxy</AssemblyName>
+    <RootNamespace>KeePassNatMsgProxy</RootNamespace>
+    <AssemblyName>keepassnatmsg-proxy</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -34,7 +34,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>KeePassHttpProxy.Proxy</StartupObject>
+    <StartupObject>KeePassNatMsgProxy.Proxy</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />

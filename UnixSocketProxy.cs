@@ -2,7 +2,7 @@
 using System;
 using System.Net.Sockets;
 
-namespace KeePassHttpProxy
+namespace KeePassNatMsgProxy
 {
     public class UnixSocketProxy : ProxyBase
     {

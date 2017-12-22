@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO.Pipes;
 
-namespace KeePassHttpProxy
+namespace KeePassNatMsgProxy
 {
     public class PipeProxy : ProxyBase
     {
