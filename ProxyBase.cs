@@ -8,6 +8,7 @@ namespace KeePassNatMsgProxy
         protected const string ProxyName = "kpxc_server";
         private const int BufferSize = 1024 * 1024;
         private Thread _readThread;
+        private Thread _writeThread;
         private bool _active;
         private readonly object _writeLock;
 
@@ -31,10 +32,30 @@ namespace KeePassNatMsgProxy
 
             _readThread = new Thread(ClientReadThread)
             {
-                Name = "ClientReadThread"
+                Name = nameof(ClientReadThread)
             };
             _readThread.Start();
 
+            _writeThread = new Thread(ClientWriteThread)
+            {
+                Name = nameof(ClientWriteThread)
+            };
+            _writeThread.Start();
+
+            _writeThread.Join();
+
+            Close();
+            _readThread.Join();
+        }
+
+        protected abstract void Connect();
+        protected abstract void Close();
+        protected abstract bool IsClientConnected { get; }
+        protected abstract void ClientWrite(byte[] data);
+        protected abstract int ClientRead(byte[] buffer, int offset, int length);
+
+        private void ClientWriteThread()
+        {
             do
             {
                 var data = ConsoleRead();
@@ -47,16 +68,7 @@ namespace KeePassNatMsgProxy
                     _active = false;
                 }
             } while (_active && IsClientConnected);
-
-            Close();
-            _readThread.Join();
         }
-
-        protected abstract void Connect();
-        protected abstract void Close();
-        protected abstract bool IsClientConnected { get; }
-        protected abstract void ClientWrite(byte[] data);
-        protected abstract int ClientRead(byte[] buffer, int offset, int length);
 
         private void ClientReadThread()
         {
