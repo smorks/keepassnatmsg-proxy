@@ -5,19 +5,36 @@ namespace KeePassNatMsgProxy
 {
     public class PipeProxy : ProxyBase
     {
-        private NamedPipeClientStream _client;
         private const int ConnectTimeout = 5000;
+
+        private NamedPipeClientStream _client;
 
         protected override bool IsClientConnected => _client.IsConnected;
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<optimization>")]
         protected override int ClientRead(byte[] buffer, int offset, int length)
         {
-            return _client.Read(buffer, offset, length);
+            try
+            {
+                return _client.Read(buffer, offset, length);
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<optimization>")]
         protected override void ClientWrite(byte[] data)
         {
-            _client.Write(data, 0, data.Length);
+            try
+            {
+                _client.Write(data, 0, data.Length);
+            }
+            catch (Exception)
+            {
+                return;
+            }
         }
 
         protected override void Close()
@@ -25,10 +42,18 @@ namespace KeePassNatMsgProxy
             _client.Close();
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<optimization>")]
         protected override void Connect()
         {
-            _client = new NamedPipeClientStream(".", $"keepassxc\\{Environment.UserName}\\{ProxyName}", PipeDirection.InOut, PipeOptions.Asynchronous);
-            _client.Connect(ConnectTimeout);
+            try
+            {
+                _client = new NamedPipeClientStream(".", $"keepassxc\\{Environment.UserName}\\{ProxyName}", PipeDirection.InOut, PipeOptions.Asynchronous);
+                _client.Connect(ConnectTimeout);
+            }
+            catch (Exception)
+            {
+                return;
+            }
         }
     }
 }
