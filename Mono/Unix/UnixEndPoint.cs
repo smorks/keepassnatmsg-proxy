@@ -44,7 +44,7 @@ namespace KeePassHttpProxy.Mono.Unix
             if (filename == null)
                 throw new ArgumentNullException(nameof(filename));
 
-            if (filename == "")
+            if (String.IsNullOrEmpty(filename))
                 throw new ArgumentException("Cannot be empty.", nameof(filename));
             this.filename = filename;
         }
@@ -83,8 +83,10 @@ namespace KeePassHttpProxy.Mono.Unix
             {
                 // Empty filename.
                 // Probably from RemoteEndPoint which on linux does not return the file name.
-                UnixEndPoint uep = new UnixEndPoint("a");
-                uep.filename = "";
+                UnixEndPoint uep = new UnixEndPoint("a")
+                {
+                    filename = ""
+                };
                 return uep;
             }
             int size = socketAddress.Size - 2;
@@ -130,8 +132,7 @@ namespace KeePassHttpProxy.Mono.Unix
 
         public override bool Equals(object o)
         {
-            UnixEndPoint other = o as UnixEndPoint;
-            if (other == null)
+            if (!(o is UnixEndPoint other))
                 return false;
 
             return (other.filename == filename);
