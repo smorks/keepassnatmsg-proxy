@@ -8,31 +8,6 @@ namespace KeePassNatMsgProxy
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<optimization>")]
         public static int Main(string[] args)
         {
-            if (args.Length == 0)
-            {
-                DialogResult result = MessageBox.Show("No arguments received.", nameof(KeePassNatMsgProxy) + " Info");
-
-                // Set exit code of application
-                return 1;
-            }
-            else
-            {
-                string msg = "";
-
-                foreach (string item in args)
-                {
-                    msg = msg + "\n" + item;
-                }
-
-#if DEBUG
-                DialogResult result = MessageBox.Show("Attention: " + nameof(KeePassNatMsgProxy) + " runs in DEBUG mode.\n" +
-                                                      "\n" +
-                                                      "Arguments: " + msg,
-                                                      nameof(KeePassNatMsgProxy) + " Info");
-#endif
-            }
-
-
             // check if we're running under Mono
             var t = Type.GetType("Mono.Runtime");
 
