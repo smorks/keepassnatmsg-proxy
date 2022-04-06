@@ -35,4 +35,4 @@ jobs:
         with:
           body_path: release.txt
           files: |
-            "bin\Release\keepassnatmsg-proxy.exe"
+            bin\Release\keepassnatmsg-proxy.exe
