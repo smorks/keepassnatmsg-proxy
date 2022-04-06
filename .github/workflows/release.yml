@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: 'windows-latest'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1.0.0
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.2
+      - name: Build
+        run: |
+          $ainfo = "Properties\AssemblyInfo.cs"
+          $content = (Get-Content -Path $ainfo) -replace '\[assembly: AssemblyVersion\("([\d.]+?)"\)\]', ('[assembly: AssemblyVersion("' + "${{ steps.tag.outputs.tag }}".substring(1) + '")]')
+          $content | Set-Content -Path $ainfo
+          msbuild /p:Configuration=Release
+      - name: Prepare Release
+        run: |
+          $exe = "keepassnatmsg-proxy.exe"
+          $exefull = "bin\Release\"+$exe
+          $hasher = [System.Security.Cryptography.HashAlgorithm]::Create('sha256')
+          $hash = $hasher.ComputeHash([System.IO.File]::ReadAllBytes($exefull))
+          $hashstr = [System.BitConverter]::ToString($hash).Replace("-","").ToLower()
+          Set-Content -Path 'release.txt' -Value ('### SHA256 Hash',('* '+$exe),('  * '+$hashstr))
+      - name: Publish Release
+        uses: softprops/action-gh-release@v0.1.12
+        with:
+          body_path: release.txt
+          files: |
+            "bin\Release\keepassnatmsg-proxy.exe"
