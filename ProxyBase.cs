@@ -22,7 +22,6 @@ namespace KeePassNatMsgProxy
             _writeLock = new object();
         }
 
-
         /// <summary>
         /// Create a thread and run the proxy.
         /// </summary>
@@ -42,7 +41,6 @@ namespace KeePassNatMsgProxy
                 return;
             }
 
-
             // Create the reader thread.
             try
             {
@@ -54,25 +52,20 @@ namespace KeePassNatMsgProxy
             }
             catch (ArgumentNullException anex)
             {
-
                 throw new ProxyException("Argument null error while creating Reader thread.", anex);
             }
             catch (ThreadStateException tsex)
             {
-
                 throw new ProxyException("Thread state error while creating Reader thread.", tsex);
             }
             catch (OutOfMemoryException oomex)
             {
-
                 throw new ProxyException("Out of memory error while creating Reader thread.", oomex);
             }
             catch (Exception ex)
             {
-
                 throw new ProxyException("Error while creating Reader thread.", ex);
             }
-
 
             // Create the reader thread.
             try
@@ -82,39 +75,31 @@ namespace KeePassNatMsgProxy
                     Name = nameof(ClientWriteThread)
                 };
                 _writeThread.Start();
-
             }
             catch (ArgumentNullException anex)
             {
-
                 throw new ProxyException("Argument null error while creating Writer thread.", anex);
             }
             catch (ThreadStateException tsex)
             {
-
                 throw new ProxyException("Thread state error while creating Writer thread.", tsex);
             }
             catch (OutOfMemoryException oomex)
             {
-
                 throw new ProxyException("Out of memory error while creating Writer thread.", oomex);
             }
             catch (Exception ex)
             {
-
                 throw new ProxyException("Error while creating Writer thread.", ex);
             }
-
 
             // Wait until Writer ends.
             try
             {
                 _writeThread.Join();
-
             }
             catch (ThreadStateException tsex)
             {
-
                 throw new ProxyException("Thread state error while Writer thread ends.", tsex);
             }
             catch (ThreadInterruptedException tiex)
@@ -123,10 +108,8 @@ namespace KeePassNatMsgProxy
             }
             catch (Exception ex)
             {
-
                 throw new ProxyException("Error while Writer thread ends.", ex);
             }
-
 
             // Close connection to target process.
             Close();
@@ -138,7 +121,6 @@ namespace KeePassNatMsgProxy
             }
             catch (ThreadStateException tsex)
             {
-
                 throw new ProxyException("Thread state error while Reader thread ends.", tsex);
             }
             catch (ThreadInterruptedException tiex)
@@ -147,11 +129,9 @@ namespace KeePassNatMsgProxy
             }
             catch (Exception ex)
             {
-
                 throw new ProxyException("Error while Reader thread ends.", ex);
             }
         }
-
 
         protected abstract void Connect();
         protected abstract void Close();
@@ -163,14 +143,22 @@ namespace KeePassNatMsgProxy
         {
             do
             {
-                var data = ConsoleRead();
-                if (data != null)
+                try
                 {
-                    ClientWrite(data);
+                    var data = ConsoleRead();
+                    if (data != null)
+                    {
+                        ClientWrite(data);
+                    }
+                    else
+                    {
+                        _active = false;
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
                     _active = false;
+                    throw new ProxyException("Exception in ClientWriteThread.", ex);
                 }
             } while (_active && IsClientConnected);
         }
@@ -181,7 +169,6 @@ namespace KeePassNatMsgProxy
             {
                 try
                 {
-
                     var buffer = new byte[BufferSize];
                     var bytes = ClientRead(buffer, 0, buffer.Length);
                     if (bytes > 0)
@@ -193,7 +180,8 @@ namespace KeePassNatMsgProxy
                 }
                 catch (Exception ex)
                 {
-                    throw new ProxyException("Exception while reading.", ex);
+                    _active = false;
+                    throw new ProxyException("Exception in ClientReadThread.", ex);
                 }
             }
         }
