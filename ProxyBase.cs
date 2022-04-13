@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Text;
 using System.Threading;
 
 namespace KeePassNatMsgProxy
@@ -13,6 +15,7 @@ namespace KeePassNatMsgProxy
         private Thread _writeThread;
         private bool _active;
         private readonly object _writeLock;
+        private StreamWriter _log;
 
         /// <summary>
         /// Initialize a new instance of ProxyBase.
@@ -35,6 +38,7 @@ namespace KeePassNatMsgProxy
             try
             {
                 Connect();
+                _log = new StreamWriter(File.OpenWrite("proxy.log"), new UTF8Encoding(false));
             }
             catch (Exception)
             {
@@ -131,6 +135,8 @@ namespace KeePassNatMsgProxy
             {
                 throw new ProxyException("Error while Reader thread ends.", ex);
             }
+
+            _log.Close();
         }
 
         protected abstract void Connect();
@@ -143,6 +149,8 @@ namespace KeePassNatMsgProxy
         {
             do
             {
+                LogWrite($"ClientWriteThread loop start");
+
                 try
                 {
                     var data = ConsoleRead();
@@ -167,6 +175,8 @@ namespace KeePassNatMsgProxy
         {
             while (_active && IsClientConnected)
             {
+                LogWrite($"ClientReadThread loop start");
+
                 try
                 {
                     var buffer = new byte[BufferSize];
@@ -225,6 +235,11 @@ namespace KeePassNatMsgProxy
                     throw new ProxyException("Exception while writing.", ex);
                 }
             }
+        }
+
+        private void LogWrite(string msg)
+        {
+            _log.WriteLine("{0}: {1}", DateTime.Now, msg);
         }
     }
 }
