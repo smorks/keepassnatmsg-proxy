@@ -19,7 +19,8 @@ jobs:
       - name: Build
         run: |
           $ainfo = "Properties\AssemblyInfo.cs"
-          $content = (Get-Content -Path $ainfo) -replace '\[assembly: AssemblyVersion\("([\d.]+?)"\)\]', ('[assembly: AssemblyVersion("' + "${{ steps.tag.outputs.tag }}".substring(1) + '")]')
+          $content = (Get-Content -Path $ainfo) -replace '\[assembly: AssemblyVersion\("(?:.+?)"\)\]', ('[assembly: AssemblyVersion("' + "${{ steps.tag.outputs.tag }}".substring(1) + '.*")]')
+          $content = $content -replace '\[assembly: AssemblyCopyright\(\"(?:.+?)\"\)\]', ('[assembly: AssemblyCopyright("Copyright © Andy Brandt ' + (Get-Date).year + '")]')
           $content | Set-Content -Path $ainfo
           msbuild /p:Configuration=Release
       - name: Prepare Release
