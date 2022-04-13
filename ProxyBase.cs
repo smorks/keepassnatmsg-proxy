@@ -25,6 +25,8 @@ namespace KeePassNatMsgProxy
             _writeLock = new object();
         }
 
+        public bool EnableLog { get; set; }
+
         /// <summary>
         /// Create a thread and run the proxy.
         /// </summary>
@@ -239,7 +241,8 @@ namespace KeePassNatMsgProxy
 
         private void LogWrite(string msg)
         {
-            _log.WriteLine("{0}: {1}", DateTime.Now, msg);
+            if (EnableLog)
+                _log.WriteLine("{0}: {1}", DateTime.Now, msg);
         }
     }
 }
