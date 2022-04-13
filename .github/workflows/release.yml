@@ -27,10 +27,8 @@ jobs:
         run: |
           $exe = "keepassnatmsg-proxy.exe"
           $exefull = "bin\Release\"+$exe
-          $hasher = [System.Security.Cryptography.HashAlgorithm]::Create('sha256')
-          $hash = $hasher.ComputeHash([System.IO.File]::ReadAllBytes($exefull))
-          $hashstr = [System.BitConverter]::ToString($hash).Replace("-","").ToLower()
-          Set-Content -Path 'release.txt' -Value ('### SHA256 Hash',('* '+$exe),('  * '+$hashstr))
+          $hash = (Get-FileHash $exefull sha256).Hash.ToLower()
+          Set-Content -Path 'release.txt' -Value ('### SHA256 Hash',('* '+$exe),('  * '+$hash))
       - name: Publish Release
         uses: softprops/action-gh-release@v0.1.12
         with:
