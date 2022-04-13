@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Windows.Forms;
 
 namespace KeePassNatMsgProxy
 {
@@ -7,10 +6,18 @@ namespace KeePassNatMsgProxy
     {
         private const string EnableLog = "/log";
 
+        private static LogWriter _log;
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<optimization>")]
         public static int Main(string[] args)
         {
+            ProxyBase proxy = null;
             var enableLog = args.Length == 1 && EnableLog.Equals(args[0], StringComparison.OrdinalIgnoreCase);
+
+            if (enableLog)
+            {
+                _log = new LogWriter();
+            }
 
             // check if we're running under Mono
             var t = Type.GetType("Mono.Runtime");
@@ -20,30 +27,32 @@ namespace KeePassNatMsgProxy
                 if (t == null)
                 {
                     // not Mono, assume Windows
-                    var proxy = new PipeProxy
-                    {
-                        EnableLog = enableLog,
-                    };
-                    proxy.Run();
-
+                    proxy = new PipeProxy();
                 }
                 else
                 {
                     if (Environment.OSVersion.Platform == PlatformID.Unix || Environment.OSVersion.Platform == PlatformID.MacOSX)
                     {
-                        var proxy = new UnixSocketProxy
-                        {
-                            EnableLog = enableLog,
-                        };
-                        proxy.Run();
-
+                        proxy = new UnixSocketProxy();
                     }
+                }
+
+                if (proxy != null)
+                {
+                    proxy.Log = _log;
+                    proxy.Run();
+                }
+                else
+                {
+                    _log?.Write($"Unable to create proxy. Platform: {Environment.OSVersion.Platform}");
                 }
             }
             catch (Exception ex)
             {
-                DialogResult result = MessageBox.Show(ex.Message, nameof(KeePassNatMsgProxy) + " Error");
+                _log?.Write($"{nameof(KeePassNatMsgProxy)} Error: {ex}");
             }
+
+            _log?.Close();
 
             // Set exit code of application
             return 0;

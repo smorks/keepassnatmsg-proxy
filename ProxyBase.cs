@@ -1,6 +1,4 @@
 ﻿using System;
-using System.IO;
-using System.Text;
 using System.Threading;
 
 namespace KeePassNatMsgProxy
@@ -15,7 +13,8 @@ namespace KeePassNatMsgProxy
         private Thread _writeThread;
         private bool _active;
         private readonly object _writeLock;
-        private StreamWriter _log;
+        private readonly ManualResetEventSlim _readEnd;
+        private readonly ManualResetEventSlim _writeEnd;
 
         /// <summary>
         /// Initialize a new instance of ProxyBase.
@@ -23,9 +22,13 @@ namespace KeePassNatMsgProxy
         protected ProxyBase()
         {
             _writeLock = new object();
+            _readEnd = new ManualResetEventSlim();
+            _writeEnd = new ManualResetEventSlim();
         }
 
-        public bool EnableLog { get; set; }
+        public LogWriter Log { get; set; }
+
+        // public bool EnableLog { get; set; }
 
         /// <summary>
         /// Create a thread and run the proxy.
@@ -40,10 +43,10 @@ namespace KeePassNatMsgProxy
             try
             {
                 Connect();
-                _log = new StreamWriter(File.OpenWrite("proxy.log"), new UTF8Encoding(false));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Log?.Write($"Connect Error: {ex}");
                 return;
             }
 
@@ -99,6 +102,24 @@ namespace KeePassNatMsgProxy
                 throw new ProxyException("Error while creating Writer thread.", ex);
             }
 
+            Log?.Write("Read/Write threads started. Waiting for reset.");
+
+            WaitHandle.WaitAny(new[] {_readEnd.WaitHandle, _writeEnd.WaitHandle});
+
+            Log?.Write("Reset Received! Closing connection.");
+
+            Close();
+
+            // abort the threads if necessary
+            if (_readEnd.IsSet && !_writeEnd.IsSet)
+            {
+                _writeThread.Abort();
+            }
+            else if (_writeEnd.IsSet && !_readEnd.IsSet)
+            {
+                _readThread.Abort();
+            }
+
             // Wait until Writer ends.
             try
             {
@@ -117,8 +138,7 @@ namespace KeePassNatMsgProxy
                 throw new ProxyException("Error while Writer thread ends.", ex);
             }
 
-            // Close connection to target process.
-            Close();
+            Log?.Write("WriteThread joined.");
 
             // Wait until Reader ends.
             try
@@ -138,7 +158,7 @@ namespace KeePassNatMsgProxy
                 throw new ProxyException("Error while Reader thread ends.", ex);
             }
 
-            _log.Close();
+            Log?.Write("ReadThread joined. Exiting.");
         }
 
         protected abstract void Connect();
@@ -151,8 +171,6 @@ namespace KeePassNatMsgProxy
         {
             do
             {
-                LogWrite($"ClientWriteThread loop start");
-
                 try
                 {
                     var data = ConsoleRead();
@@ -165,37 +183,59 @@ namespace KeePassNatMsgProxy
                         _active = false;
                     }
                 }
-                catch (Exception ex)
+                catch (ThreadAbortException)
                 {
                     _active = false;
-                    throw new ProxyException("Exception in ClientWriteThread.", ex);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Log?.Write($"ClientWriteThread Error: {ex}");
+                    _active = false;
+                    break;
                 }
             } while (_active && IsClientConnected);
+
+            _writeEnd.Set();
+
+            Log?.Write("ClientWriteThread exit.");
         }
 
         private void ClientReadThread()
         {
             while (_active && IsClientConnected)
             {
-                LogWrite($"ClientReadThread loop start");
-
                 try
                 {
                     var buffer = new byte[BufferSize];
                     var bytes = ClientRead(buffer, 0, buffer.Length);
-                    if (bytes > 0)
+                    if (bytes == 0)
                     {
-                        var data = new byte[bytes];
-                        Array.Copy(buffer, data, bytes);
-                        ConsoleWrite(data);
+                        // done?
+                        _active = false;
+                        break;
                     }
+
+                    var data = new byte[bytes];
+                    Array.Copy(buffer, data, bytes);
+                    ConsoleWrite(data);
+                }
+                catch (ThreadAbortException)
+                {
+                    _active = false;
+                    break;
                 }
                 catch (Exception ex)
                 {
+                    Log?.Write($"ClientReadThread Error: {ex}");
                     _active = false;
-                    throw new ProxyException("Exception in ClientReadThread.", ex);
+                    break;
                 }
             }
+
+            _readEnd.Set();
+
+            Log?.Write("ClientReadThread exit.");
         }
 
         private static byte[] ConsoleRead()
@@ -237,12 +277,6 @@ namespace KeePassNatMsgProxy
                     throw new ProxyException("Exception while writing.", ex);
                 }
             }
-        }
-
-        private void LogWrite(string msg)
-        {
-            if (EnableLog)
-                _log.WriteLine("{0}: {1}", DateTime.Now, msg);
         }
     }
 }

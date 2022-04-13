@@ -59,6 +59,7 @@
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="LogWriter.cs" />
     <Compile Include="Mono\Unix\UnixEndPoint.cs" />
     <Compile Include="PipeProxy.cs" />
     <Compile Include="ProxyException.cs" />
